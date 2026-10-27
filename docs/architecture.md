@@ -82,3 +82,34 @@ When a module changes how the app fits together, add a section here:
 **Risks and open questions:** cost, privacy, accuracy or safety risks, and how
 you handle them.
 ```
+
+## Module 2: Ask Copper
+
+**Summary:** a floating chat panel that answers price and stock questions by
+calling four tools, and shows each step (thinking, tool call, reply) as it
+streams in. A tools-off chat shows what the same model does without them.
+
+| Piece | Where | What it does |
+|---|---|---|
+| Page | `app/page.tsx` | Mounts the panel and passes `isAiConfigured()` down as a prop |
+| Components | `components/copper/ask-copper.tsx`, `ask-copper-answer.tsx` | The launcher, the sheet, the two chats, and the stations and tool cards |
+| Tools | `lib/copper/assistant/tools.ts` | `get_products`, `get_prices`, `calculate_cost`, `check_availability`; prices come from the catalog, stock from `readInventory()` |
+| Server Action | `lib/copper/assistant/ask.ts` | `askCopper()` returns a live `Progress` at once and fills it from the model's stream |
+| Instructions | `lib/copper/assistant/instructions.ts` | Copper's system prompt (tools on only) |
+| Data | `lib/copper/data/inventory.json` | Stock list read fresh by `check_availability` |
+| AI calls | `lib/ai/call.ts` (module 2, feature `ask-copper`) | Default Gemini model via `callStream`; one logged call per question |
+
+**Data flow:** shopper question → panel → `askCopper()` Server Action →
+`callStream` (model plus tools) → tool runs on the server → each stream part
+becomes a `Progress` update → panel redraws.
+
+**Decisions and trade-offs:** the action returns a plain-promise `Live` value
+so updates stream without an API route. Tools on and off are separate chats so
+the tools-off model can't copy an answer the tools worked out. With tools off
+no instructions are sent: telling a model to use tools it doesn't have makes
+it return nothing.
+
+**Risks and open questions:** every question costs a model call, and the Server
+Action is reachable by direct POST, so the request is validated and there is no
+rate limit yet. With tools off the model can state invented prices as fact; the
+panel labels those answers.
