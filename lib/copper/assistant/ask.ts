@@ -130,7 +130,12 @@ export async function askCopper(
       // An empty reply is still a finished answer; only replace an empty one.
       if (!reply.trim()) reply = APOLOGY;
       done(snapshot("done"));
-    } catch {
+    } catch (error) {
+      // The shopper sees an apology; the real reason goes to the server log.
+      console.error(
+        "[askCopper]",
+        error instanceof Error ? error.message : String(error),
+      );
       if (!reply.trim()) reply = APOLOGY;
       done(snapshot("error"));
     }
